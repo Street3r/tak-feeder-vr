@@ -1,0 +1,21 @@
+# Standalone test setup. Copy .env.example to .env and put the feeder's
+# certificate and key in ./certs (cert.pem, key.pem).
+name: tak-feeder-vr
+
+services:
+  feeder-vr:
+    image: "${FEEDER_VR_IMAGE:-ghcr.io/street3r/tak-feeder-vr:latest}"
+    build: .
+    container_name: feeder-vr
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./certs:/data:ro
+    # If TAK runs in another compose project on the same host, join its
+    # network so COT_URL can use the service name (ssl://takserver:8090):
+    # networks: [tak]
+
+# networks:
+#   tak:
+#     name: tak_default   # docker network ls
+#     external: true

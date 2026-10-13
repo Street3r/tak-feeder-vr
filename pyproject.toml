@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tak-feeder-vr"
+version = "0.1.0"
+description = "Feed Finnish railway traffic (Fintraffic Digitraffic) into a TAK server as CoT"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+authors = [{ name = "Street3r" }]
+requires-python = ">=3.12"
+dependencies = [
+    "pytak[with-aiohttp]>=7.2,<8",
+    "paho-mqtt>=2.1,<3",
+    "tzdata",
+]
+
+[project.scripts]
+tak-feeder-vr = "tak_feeder_vr.__main__:run"
+
+[tool.setuptools.packages.find]
+where = ["src"]
