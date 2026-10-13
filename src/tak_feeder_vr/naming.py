@@ -53,20 +53,34 @@ def is_commuter(info: Optional[TrainInfo]) -> bool:
     return bool(info and info.commuter_line)
 
 
-def callsign(key: TrainKey, info: Optional[TrainInfo], overrides: dict[str, str]) -> str:
+def commuter_brand(info: Optional[TrainInfo], brands: dict[str, str]) -> str:
+    """Transit authority whose line this is ("HSL", "NYSSE"), or "" when the
+    line is not in the brand map (e.g. R, Z: named after the operator)."""
+    if not info or not info.commuter_line:
+        return ""
+    return brands.get(info.commuter_line.upper(), "")
+
+
+def callsign(
+    key: TrainKey,
+    info: Optional[TrainInfo],
+    overrides: dict[str, str],
+    brands: Optional[dict[str, str]] = None,
+) -> str:
     """
-    VR IC 59 (long-distance and others), VR R (commuter line).
+    VR IC 59 (long-distance and others); commuter lines by the authority
+    that runs the line, like tak-feeder-hsl / tak-feeder-nysse name them
+    (HSL I, NYSSE M), otherwise by operator (VR R).
     Without timetable data: TRAIN <number>.
     """
     number = key[1]
     if not info:
         return f"TRAIN {number}"
-    op = operator_code(info, overrides)
     if is_commuter(info):
-        name = info.commuter_line
-    else:
-        name = f"{info.train_type} {number}".strip()
-    return f"{op} {name}".strip()
+        prefix = commuter_brand(info, brands or {}) or operator_code(info, overrides)
+        return f"{prefix} {info.commuter_line}".strip()
+    op = operator_code(info, overrides)
+    return f"{op} {info.train_type} {number}".strip()
 
 
 def route_tag(key: TrainKey, info: Optional[TrainInfo]) -> str:
@@ -77,9 +91,18 @@ def route_tag(key: TrainKey, info: Optional[TrainInfo]) -> str:
     return f"{_tagify(train_type).upper()}{key[1]}"
 
 
-def hashtags(key: TrainKey, info: Optional[TrainInfo], feed_tag: str) -> str:
-    """#vr #IC59 #kaukoliikenne #longdistance"""
+def hashtags(
+    key: TrainKey,
+    info: Optional[TrainInfo],
+    feed_tag: str,
+    brands: Optional[dict[str, str]] = None,
+) -> str:
+    """#vr #IC59 #kaukoliikenne #longdistance; the authority of its lines last:
+    #vr #I #lähiliikenne #commuter #hsl"""
     tags = [feed_tag, route_tag(key, info), *category_tags(info)]
+    brand = commuter_brand(info, brands or {})
+    if brand:
+        tags.append(_tagify(brand))
     return " ".join(f"#{t}" for t in tags if t)
 
 

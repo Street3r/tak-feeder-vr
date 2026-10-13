@@ -48,6 +48,7 @@ def remarks(
     stations: dict[str, str],
     operators: dict[str, str],
     settings_callsign: str,
+    authority: str,
     tags: str,
     source_line: str,
     tz: ZoneInfo,
@@ -82,6 +83,8 @@ def remarks(
                 parts.append(f"max {sec.max_speed} km/h")
             if parts:
                 lines.append("Rolling stock: " + ", ".join(parts))
+    if authority:
+        lines.append(f"Authority: {authority}")
     if info and info.operator:
         lines.append(f"Operator: {operators.get(info.operator, info.operator)}")
     acc = f" (±{pos.accuracy_m:.0f} m)" if pos.accuracy_m is not None else ""

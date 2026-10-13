@@ -30,7 +30,7 @@ covers VR and the other operators on the Finnish network.
 | Field | Value |
 |---|---|
 | UID | `VR-<departure date>-<train number>`, or the HSL UID (see below) |
-| Callsign | `VR IC 59`; commuter trains by line, `VR R`; other operators by their code, e.g. `FENNIARAIL T 3021` |
+| Callsign | `VR IC 59`; commuter lines of HSL and Nysse as those feeders name them, `HSL I`, `NYSSE M`; other commuter lines by operator, `VR R`; other operators by their code, e.g. `FENNIARAIL T 3021` |
 | Type | `a-f-G-E-V-C-M`, the same as tak-feeder-hsl (generic vehicle; ATAK has no civilian train symbol) |
 | Speed / course | m/s as CoT requires (ATAK shows the user's units); course computed from consecutive positions |
 | `ce` | GPS accuracy from Digitraffic |
@@ -56,23 +56,40 @@ Category hashtags, Finnish and English: `#kaukoliikenne #longdistance`,
 `#lähiliikenne #commuter`, `#tavaraliikenne #cargo`, `#veturi #locomotive`,
 `#vaihtotyö #shunting`, `#ratatyökone #trackmachine`, `#koeajo #testrun`.
 
+### Commuter lines and authorities
+
+VR runs every commuter train, and Digitraffic reports `vr` as the operator
+for all of them. The authority that orders a line is not in the data, so the
+feeder maps line letters (`COMMUTER_BRANDS`):
+
+| Lines | Callsign | Extra tag | Remarks |
+|---|---|---|---|
+| A, E, I, K, L, P, U, X, Y (HSL's own lines) | `HSL I` | `#hsl` | `Authority: HSL` |
+| M (Tampere region) | `NYSSE M` | `#nysse` | `Authority: NYSSE` |
+| R, Z, D, T, G, O, H and others | `VR R` | | |
+
+R, Z, D and T also stop in the HSL area with HSL tickets, but they are not
+HSL's own lines. The map is a setting, so it can follow changes.
+
 ### Commuter trains also published by HSL
 
 HSL publishes the commuter trains of the Helsinki region, and
 [tak-feeder-hsl](https://github.com/Street3r/tak-feeder-hsl) (fork of
 [sgofferj/tak-feeder-hsl](https://github.com/sgofferj/tak-feeder-hsl)) and
 [trakbridge-plugin-hsl](https://github.com/sgofferj/trakbridge-plugin-hsl)
-send them to TAK. To avoid two markers for one train, this feeder also listens
-to HSL's train feed (`/hfp/v2/journey/ongoing/vp/train/#` on `mqtt.hsl.fi`)
-and pairs trains by line letter, operating day, distance and heading, one to
-one. `HSL_MODE` decides what happens to a paired train:
+send them to TAK. The simplest way to avoid two markers is to drop trains
+from the HSL feeder; docker-tak-feeder-compose does that with
+`HSL_EXCLUDE_MODES=train`. That is what the default `HSL_MODE=off` assumes.
 
-- `uid` (default): sent with the UID tak-feeder-hsl uses,
-  `HSL-train-<route>-<oday>-<start>-<dir>`, so ATAK shows one marker. Its
-  callsign and remarks alternate between the two feeders; both use the same
-  CoT type, so the symbol stays the same.
+If an HSL feeder does send trains, this feeder can listen to HSL's train feed
+(`/hfp/v2/journey/ongoing/vp/train/#` on `mqtt.hsl.fi`) and pair trains by
+line letter, operating day, distance and heading, one to one:
+
+- `uid`: sent with the UID tak-feeder-hsl uses,
+  `HSL-train-<route>-<oday>-<start>-<dir>`, so ATAK shows one marker. Both
+  feeders use the same CoT type, so the symbol stays the same.
 - `skip`: not sent; HSL's marker is the only one.
-- `off`: HSL is ignored.
+- `off` (default): HSL is ignored.
 
 ## Running
 
@@ -81,14 +98,14 @@ The image is built for amd64 and arm64: `ghcr.io/street3r/tak-feeder-vr`.
 ```bash
 git clone https://github.com/Street3r/tak-feeder-vr.git
 cd tak-feeder-vr
-cp .env.example .env          # COT_URL, certificate paths, HSL_MODE
+cp .env.example .env          # COT_URL, certificate paths
 mkdir certs                   # cert.pem and key.pem (unencrypted) go here
 docker compose up -d
 docker compose logs -f
 ```
 
-The feeder logs a summary every five minutes: CoT sent, trains paired with
-HSL, trains without timetable, and MQTT message counts.
+The feeder logs a summary every five minutes: CoT sent, trains without
+timetable, trains paired with HSL (if enabled), and MQTT message counts.
 
 ### Certificate
 
@@ -116,7 +133,8 @@ All settings are environment variables, documented in
 | `PYTAK_TLS_CLIENT_CERT`, `PYTAK_TLS_CLIENT_KEY` | | Client certificate and key (PEM). `CLIENT_CERT`/`CLIENT_KEY` also work |
 | `PYTAK_TLS_DONT_VERIFY` | `0` | `1` = do not verify the TAK server certificate |
 | `DIGITRAFFIC_USER` | `tak-feeder-vr` | `Digitraffic-User` header. No personal data |
-| `HSL_MODE` | `uid` | `uid`, `skip` or `off` |
+| `HSL_MODE` | `off` | `uid`, `skip` or `off` |
+| `COMMUTER_BRANDS` | HSL lines, `M=NYSSE` | Line letter to authority, e.g. `I=HSL` |
 | `CATEGORIES` | all | e.g. `Long-distance,Commuter` |
 | `OPERATOR_CALLSIGNS` | | e.g. `fenniarail=FR` |
 | `DEBUG` | `0` | `1` logs every CoT event |
@@ -157,6 +175,7 @@ see [LICENSE](LICENSE).
 
 Data: Source: Fintraffic / digitraffic.fi, license
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The feeder
-converts the data to CoT and adds derived values (course, next stop). HSL
-data (used only for pairing trains) is © HSL, CC BY 4.0. The data is provided
+converts the data to CoT and adds derived values (course, next stop, line
+authority). HSL data (only used for pairing trains when `HSL_MODE` is not
+`off`) is © HSL, CC BY 4.0. The data is provided
 as is, without warranty.

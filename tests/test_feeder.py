@@ -93,6 +93,22 @@ class NamingTest(unittest.TestCase):
         self.assertEqual(naming.callsign(key, t, {}), "VR R")
         self.assertEqual(naming.hashtags(key, t, "vr"), "#vr #R #lähiliikenne #commuter")
 
+    def test_authority_lines(self) -> None:
+        brands = Settings().commuter_brands
+        hsl = model.parse_train(fx.commuter(line="I"))
+        nysse = model.parse_train(fx.commuter(line="M"))
+        r = model.parse_train(fx.commuter(line="R"))
+        key = (fx.DATE, "9655")
+        self.assertEqual(naming.callsign(key, hsl, {}, brands), "HSL I")
+        self.assertEqual(naming.hashtags(key, hsl, "vr", brands), "#vr #I #lähiliikenne #commuter #hsl")
+        self.assertEqual(naming.callsign(key, nysse, {}, brands), "NYSSE M")
+        self.assertEqual(naming.hashtags(key, nysse, "vr", brands), "#vr #M #lähiliikenne #commuter #nysse")
+        self.assertEqual(naming.callsign(key, r, {}, brands), "VR R")
+        self.assertEqual(naming.hashtags(key, r, "vr", brands), "#vr #R #lähiliikenne #commuter")
+        # Long-distance trains never take a brand
+        ic = model.parse_train(fx.long_distance())
+        self.assertEqual(naming.callsign((fx.DATE, "59"), ic, {}, brands), "VR IC 59")
+
     def test_other_operator_and_override(self) -> None:
         t = model.parse_train(fx.cargo())
         key = (fx.DATE, "3021")
@@ -187,6 +203,19 @@ class EventTest(unittest.TestCase):
         self.store.update_position(model.parse_position(jitter))  # type: ignore[arg-type]
         (ev,) = events(self.store, NOW + timedelta(seconds=12))
         self.assertEqual(ev.find("detail/track").get("course"), "0.0")  # type: ignore[union-attr]
+
+    def test_hsl_line_event(self) -> None:
+        store = make_store()
+        h = digitraffic_handler(store)
+        h("trains/x", fx.commuter(9601, line="I"))
+        h("train-locations/x", fx.position(number=9601))
+        (ev,) = events(store)
+        self.assertEqual(ev.find("detail/contact").get("callsign"), "HSL I")  # type: ignore[union-attr]
+        self.assertEqual(ev.get("uid"), f"VR-{fx.DATE}-9601")  # HSL_MODE off by default
+        text = remarks(ev)
+        self.assertIn("Authority: HSL", text)
+        self.assertIn("Operator: VR-Yhtymä Oyj", text)
+        self.assertTrue(text.endswith("#vr #I #lähiliikenne #commuter #hsl"))
 
     def test_category_filter(self) -> None:
         store = make_store(hsl_mode="off", categories=["Commuter"])
@@ -310,6 +339,12 @@ class ConfigTest(unittest.TestCase):
         cfg = s.pytak_config()
         self.assertEqual(cfg["PYTAK_TLS_DONT_VERIFY"], "1")
         self.assertNotIn("DEBUG", cfg)  # pytak treats "0" as true
+
+    def test_brands(self) -> None:
+        self.assertEqual(Settings.from_env({}).commuter_brands["M"], "NYSSE")
+        self.assertEqual(Settings.from_env({}).hsl_mode, "off")
+        self.assertEqual(Settings.from_env({"COMMUTER_BRANDS": "r=HSL"}).commuter_brands, {"R": "HSL"})
+        self.assertEqual(Settings.from_env({"COMMUTER_BRANDS": ""}).commuter_brands, {})
 
     def test_bad_hsl_mode(self) -> None:
         with self.assertRaises(ValueError):

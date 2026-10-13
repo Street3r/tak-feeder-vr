@@ -243,8 +243,9 @@ class TrainStore:
                     uid = hsl_uid
                     stats.hsl_uid += 1
 
-                call = naming.callsign(key, info, self.s.operator_callsigns)
-                tags = naming.hashtags(key, info, self.s.feed_tag)
+                brands = self.s.commuter_brands
+                call = naming.callsign(key, info, self.s.operator_callsigns, brands)
+                tags = naming.hashtags(key, info, self.s.feed_tag, brands)
                 text = cot.remarks(
                     pos,
                     info,
@@ -252,6 +253,7 @@ class TrainStore:
                     self.stations,
                     self.operators,
                     call,
+                    naming.commuter_brand(info, brands),
                     tags,
                     self.s.source_line,
                     self.tz,

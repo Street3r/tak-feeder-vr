@@ -10,19 +10,25 @@ from typing import Mapping, Optional
 
 HSL_MODES = ("uid", "skip", "off")
 
+# Commuter lines named after the transit authority that runs them, matching
+# tak-feeder-hsl ("HSL I") and tak-feeder-nysse ("NYSSE M"). Lines not listed
+# (R, Z, D, T, G, O, H ...) are named after the operator ("VR R").
+DEFAULT_COMMUTER_BRANDS = "A=HSL,E=HSL,I=HSL,K=HSL,L=HSL,P=HSL,U=HSL,X=HSL,Y=HSL,M=NYSSE"
+
 
 def _bool(value: Optional[str]) -> bool:
     return str(value or "").strip().lower() in ("1", "true", "yes", "on")
 
 
-def _map(value: Optional[str]) -> dict[str, str]:
-    """Parse "a=X,b=Y" into {"a": "X", "b": "Y"}."""
+def _map(value: Optional[str], upper_keys: bool = False) -> dict[str, str]:
+    """Parse "a=X,b=Y" into {"a": "X", "b": "Y"} (keys lower- or upper-cased)."""
     result: dict[str, str] = {}
     for part in (value or "").split(","):
         if "=" in part:
             k, v = part.split("=", 1)
             if k.strip() and v.strip():
-                result[k.strip().lower()] = v.strip()
+                key = k.strip().upper() if upper_keys else k.strip().lower()
+                result[key] = v.strip()
     return result
 
 
@@ -56,11 +62,14 @@ class Settings:
     feed_tag: str = "vr"
     source_line: str = "Source: Fintraffic / digitraffic.fi, CC BY 4.0"
     operator_callsigns: dict[str, str] = field(default_factory=dict)
+    commuter_brands: dict[str, str] = field(
+        default_factory=lambda: _map(DEFAULT_COMMUTER_BRANDS, upper_keys=True)
+    )
     categories: list[str] = field(default_factory=list)  # empty = all
     timezone: str = "Europe/Helsinki"
 
     # Matching with HSL's own feed (tak-feeder-hsl / trakbridge-plugin-hsl)
-    hsl_mode: str = "uid"
+    hsl_mode: str = "off"
     hsl_broker: str = "mqtt.hsl.fi"
     hsl_port: int = 1883
     hsl_match_distance: float = 1500.0
@@ -100,6 +109,11 @@ class Settings:
             feed_tag=get("FEED_TAG", d.feed_tag),
             source_line=get("SOURCE_LINE", d.source_line),
             operator_callsigns=_map(env.get("OPERATOR_CALLSIGNS")),
+            # Set but empty = no brands, every commuter train as "VR <line>"
+            commuter_brands=_map(
+                env["COMMUTER_BRANDS"] if "COMMUTER_BRANDS" in env else DEFAULT_COMMUTER_BRANDS,
+                upper_keys=True,
+            ),
             categories=_list(env.get("CATEGORIES")),
             timezone=get("TIMEZONE", d.timezone),
             hsl_mode=hsl_mode,
