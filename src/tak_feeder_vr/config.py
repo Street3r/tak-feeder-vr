@@ -51,10 +51,10 @@ class Settings:
     refresh_interval: float = 30.0
     stale_seconds: int = 120
     max_position_age: int = 180
-    cot_type: str = "a-n-G-E-V-C-M"
+    cot_type: str = "a-f-G-E-V-C-M"  # same as HSL, so a shared UID keeps one look
     uid_prefix: str = "VR"
     feed_tag: str = "vr"
-    source_line: str = "Lähde: Fintraffic / digitraffic.fi, CC 4.0 BY"
+    source_line: str = "Source: Fintraffic / digitraffic.fi, CC BY 4.0"
     operator_callsigns: dict[str, str] = field(default_factory=dict)
     categories: list[str] = field(default_factory=list)  # empty = all
     timezone: str = "Europe/Helsinki"

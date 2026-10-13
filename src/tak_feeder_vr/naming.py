@@ -9,15 +9,15 @@ from typing import Optional
 
 from .model import TrainInfo, TrainKey
 
-# Digitraffic trainCategory -> (Finnish label, hashtag)
-CATEGORIES: dict[str, tuple[str, str]] = {
-    "Long-distance": ("Kaukoliikenne", "kaukoliikenne"),
-    "Commuter": ("Lähiliikenne", "lähiliikenne"),
-    "Cargo": ("Tavaraliikenne", "tavaraliikenne"),
-    "Locomotive": ("Veturiliikenne", "veturi"),
-    "Shunting": ("Vaihtotyö", "vaihtotyö"),
-    "On-track machines": ("Ratatyökone", "ratatyökone"),
-    "Test drive": ("Koeajo", "koeajo"),
+# Digitraffic trainCategory -> (English label, Finnish hashtag, English hashtag)
+CATEGORIES: dict[str, tuple[str, str, str]] = {
+    "Long-distance": ("Long-distance", "kaukoliikenne", "longdistance"),
+    "Commuter": ("Commuter", "lähiliikenne", "commuter"),
+    "Cargo": ("Cargo", "tavaraliikenne", "cargo"),
+    "Locomotive": ("Locomotive", "veturi", "locomotive"),
+    "Shunting": ("Shunting", "vaihtotyö", "shunting"),
+    "On-track machines": ("Track machine", "ratatyökone", "trackmachine"),
+    "Test drive": ("Test run", "koeajo", "testrun"),
 }
 
 
@@ -27,18 +27,18 @@ def _tagify(text: str) -> str:
 
 
 def category_label(info: Optional[TrainInfo]) -> str:
-    """Finnish label for the train category."""
+    """English label for the train category."""
     if not info or not info.category:
-        return "Tuntematon"
-    return CATEGORIES.get(info.category, (info.category, ""))[0]
+        return "Unknown"
+    return CATEGORIES.get(info.category, (info.category, "", ""))[0]
 
 
-def category_tag(info: Optional[TrainInfo]) -> str:
-    """Hashtag word for the train category."""
+def category_tags(info: Optional[TrainInfo]) -> list[str]:
+    """Hashtag words for the train category: Finnish, then English."""
     if not info or not info.category:
-        return "tuntematon"
+        return ["tuntematon", "unknown"]
     known = CATEGORIES.get(info.category)
-    return known[1] if known else _tagify(info.category)
+    return [known[1], known[2]] if known else [_tagify(info.category)]
 
 
 def operator_code(info: Optional[TrainInfo], overrides: dict[str, str]) -> str:
@@ -56,11 +56,11 @@ def is_commuter(info: Optional[TrainInfo]) -> bool:
 def callsign(key: TrainKey, info: Optional[TrainInfo], overrides: dict[str, str]) -> str:
     """
     VR IC 59 (long-distance and others), VR R (commuter line).
-    Without timetable data: JUNA <number>.
+    Without timetable data: TRAIN <number>.
     """
     number = key[1]
     if not info:
-        return f"JUNA {number}"
+        return f"TRAIN {number}"
     op = operator_code(info, overrides)
     if is_commuter(info):
         name = info.commuter_line
@@ -78,8 +78,8 @@ def route_tag(key: TrainKey, info: Optional[TrainInfo]) -> str:
 
 
 def hashtags(key: TrainKey, info: Optional[TrainInfo], feed_tag: str) -> str:
-    """#vr #IC59 #kaukoliikenne"""
-    tags = [feed_tag, route_tag(key, info), category_tag(info)]
+    """#vr #IC59 #kaukoliikenne #longdistance"""
+    tags = [feed_tag, route_tag(key, info), *category_tags(info)]
     return " ".join(f"#{t}" for t in tags if t)
 
 

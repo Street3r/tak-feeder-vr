@@ -34,7 +34,7 @@ def next_stop(info: TrainInfo) -> Optional[TimetableRow]:
 
 def _delay_text(row: TimetableRow) -> str:
     if row.unknown_delay:
-        return " (myöhässä, ei arviota)"
+        return " (late, no estimate)"
     diff = row.difference_min
     if diff is None or diff == 0:
         return ""
@@ -57,7 +57,7 @@ def remarks(
     lines = [f"{settings_callsign} · {naming.category_label(info)}"]
     if info:
         if info.cancelled:
-            lines.append("PERUTTU")
+            lines.append("CANCELLED")
         if info.rows:
             first = _station(info.rows[0].station, stations)
             last = _station(info.rows[-1].station, stations)
@@ -66,8 +66,8 @@ def remarks(
         if nxt:
             when = nxt.estimate or nxt.scheduled
             at = f" {when.astimezone(tz):%H:%M}" if when else ""
-            lines.append(f"Seuraava: {_station(nxt.station, stations)}{at}{_delay_text(nxt)}")
-    lines.append(f"Nopeus: {pos.speed_kmh:.0f} km/h")
+            lines.append(f"Next: {_station(nxt.station, stations)}{at}{_delay_text(nxt)}")
+    lines.append(f"Speed: {pos.speed_kmh:.0f} km/h")
     if comp:
         sec = comp.section_at(now)
         if sec:
@@ -75,18 +75,18 @@ def remarks(
             if sec.locomotives:
                 parts.append(", ".join(sec.locomotives))
             if sec.wagons:
-                parts.append(f"{sec.wagons} vaunua")
+                parts.append(f"{sec.wagons} cars")
             if sec.length_m:
                 parts.append(f"{sec.length_m} m")
             if sec.max_speed:
                 parts.append(f"max {sec.max_speed} km/h")
             if parts:
-                lines.append("Kalusto: " + ", ".join(parts))
+                lines.append("Rolling stock: " + ", ".join(parts))
     if info and info.operator:
-        lines.append(f"Operaattori: {operators.get(info.operator, info.operator)}")
+        lines.append(f"Operator: {operators.get(info.operator, info.operator)}")
     acc = f" (±{pos.accuracy_m:.0f} m)" if pos.accuracy_m is not None else ""
     lines.append(f"GPS: {pos.timestamp.astimezone(tz):%H:%M:%S}{acc}")
-    lines.append(f"Juna {pos.key[1]}, lähtöpäivä {pos.key[0] or '-'}")
+    lines.append(f"Train {pos.key[1]}, departure date {pos.key[0] or '-'}")
     if source_line:
         lines.append(source_line)
     lines.append(tags)

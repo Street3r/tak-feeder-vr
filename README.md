@@ -1,5 +1,10 @@
 # tak-feeder-vr
 
+> [!WARNING]
+> **Work in progress. Not recommended for use.** The feeder has not been run
+> against live Digitraffic data or a live TAK server yet. Things may change or
+> break without notice.
+
 Feeds the live GPS positions of trains running in Finland into a TAK server
 as CoT. The data comes from Fintraffic's open
 [Digitraffic rail API](https://www.digitraffic.fi/rautatieliikenne/) and
@@ -26,7 +31,7 @@ covers VR and the other operators on the Finnish network.
 |---|---|
 | UID | `VR-<departure date>-<train number>`, or the HSL UID (see below) |
 | Callsign | `VR IC 59`; commuter trains by line, `VR R`; other operators by their code, e.g. `FENNIARAIL T 3021` |
-| Type | `a-n-G-E-V-C-M` (generic neutral vehicle; ATAK has no civilian train symbol) |
+| Type | `a-f-G-E-V-C-M`, the same as tak-feeder-hsl (generic vehicle; ATAK has no civilian train symbol) |
 | Speed / course | m/s as CoT requires (ATAK shows the user's units); course computed from consecutive positions |
 | `ce` | GPS accuracy from Digitraffic |
 | Stale | 120 s |
@@ -35,25 +40,27 @@ The remarks hold the route, next stop with estimate and delay, speed,
 rolling stock, operator, GPS time, the data source and hashtags:
 
 ```
-VR IC 59 · Kaukoliikenne
+VR IC 59 · Long-distance
 Helsinki → Oulu
-Seuraava: Pasila 12:00 (+3 min)
-Nopeus: 108 km/h
-Kalusto: Sr2, 7 vaunua, 189 m, max 200 km/h
-Operaattori: VR-Yhtymä Oyj
+Next: Pasila 12:00 (+3 min)
+Speed: 108 km/h
+Rolling stock: Sr2, 7 cars, 189 m, max 200 km/h
+Operator: VR-Yhtymä Oyj
 GPS: 12:00:00 (±8 m)
-Juna 59, lähtöpäivä 2026-10-13
-Lähde: Fintraffic / digitraffic.fi, CC 4.0 BY
-#vr #IC59 #kaukoliikenne
+Train 59, departure date 2026-10-13
+Source: Fintraffic / digitraffic.fi, CC BY 4.0
+#vr #IC59 #kaukoliikenne #longdistance
 ```
 
-Category hashtags: `#kaukoliikenne`, `#lähiliikenne`, `#tavaraliikenne`,
-`#veturi`, `#vaihtotyö`, `#ratatyökone`, `#koeajo`.
+Category hashtags, Finnish and English: `#kaukoliikenne #longdistance`,
+`#lähiliikenne #commuter`, `#tavaraliikenne #cargo`, `#veturi #locomotive`,
+`#vaihtotyö #shunting`, `#ratatyökone #trackmachine`, `#koeajo #testrun`.
 
 ### Commuter trains also published by HSL
 
 HSL publishes the commuter trains of the Helsinki region, and
-[tak-feeder-hsl](https://github.com/sgofferj/tak-feeder-hsl) /
+[tak-feeder-hsl](https://github.com/Street3r/tak-feeder-hsl) (fork of
+[sgofferj/tak-feeder-hsl](https://github.com/sgofferj/tak-feeder-hsl)) and
 [trakbridge-plugin-hsl](https://github.com/sgofferj/trakbridge-plugin-hsl)
 send them to TAK. To avoid two markers for one train, this feeder also listens
 to HSL's train feed (`/hfp/v2/journey/ongoing/vp/train/#` on `mqtt.hsl.fi`)
@@ -62,7 +69,8 @@ one. `HSL_MODE` decides what happens to a paired train:
 
 - `uid` (default): sent with the UID tak-feeder-hsl uses,
   `HSL-train-<route>-<oday>-<start>-<dir>`, so ATAK shows one marker. Its
-  callsign and remarks alternate between the two feeders.
+  callsign and remarks alternate between the two feeders; both use the same
+  CoT type, so the symbol stays the same.
 - `skip`: not sent; HSL's marker is the only one.
 - `off`: HSL is ignored.
 
@@ -83,6 +91,12 @@ The feeder logs a summary every five minutes: CoT sent, trains paired with
 HSL, trains without timetable, and MQTT message counts.
 
 ### Certificate
+
+The container runs as uid 10001, so the key must be readable by that user
+(`chown 10001 key.pem`), or add `user: "0:0"` to the service. A Docker health
+check reports the container unhealthy when Digitraffic data stops arriving
+(`HEALTH_MAX_SILENCE`, default 600 s). When the TAK server is down the feeder
+reconnects by itself and keeps its train data.
 
 The feeder connects with a TAK client certificate and an unencrypted key in
 PEM format. TAK looks up the LDAP user whose name equals the certificate CN
@@ -142,7 +156,7 @@ Stefan Gofferje. Licensed under the GNU General Public License v3.0 or later;
 see [LICENSE](LICENSE).
 
 Data: Source: Fintraffic / digitraffic.fi, license
-[CC 4.0 BY](https://creativecommons.org/licenses/by/4.0/). The feeder
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The feeder
 converts the data to CoT and adds derived values (course, next stop). HSL
 data (used only for pairing trains) is © HSL, CC BY 4.0. The data is provided
 as is, without warranty.

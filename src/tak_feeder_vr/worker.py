@@ -15,6 +15,7 @@ from typing import Any, Optional
 
 import pytak
 
+from .common import Health, env_float
 from .config import Settings
 from .model import parse_composition, parse_operators, parse_stations, parse_train
 from .sources import (
@@ -47,7 +48,11 @@ class RailWorker(pytak.QueueWorker):  # type: ignore[misc]
         self.stats = Stats()
         self.sources: list[MqttSource] = []
         self._bootstrapped = False
+        self._started = False
         self._metadata_at = 0.0
+        self._seen_messages = 0
+        # Unhealthy when Digitraffic MQTT has been silent this long.
+        self.health = Health(max_silence=env_float("HEALTH_MAX_SILENCE", 600.0))
 
     async def handle_data(self, data: bytes) -> None:
         """Unused: data is produced in run()."""
@@ -136,46 +141,58 @@ class RailWorker(pytak.QueueWorker):  # type: ignore[misc]
         )
         self.stats = Stats()
 
+    def _check_health(self) -> None:
+        messages = self.sources[0].messages if self.sources else 0
+        if messages != self._seen_messages:
+            self._seen_messages = messages
+            self.health.ok()
+        self.health.check_silence()
+
+    def close(self) -> None:
+        """Stop the MQTT clients."""
+        for src in self.sources:
+            src.stop()
+
     async def run(self, number_of_iterations: Optional[int] = None) -> None:
-        """Main loop."""
-        LOG.info(
-            "Starting tak-feeder-vr: COT_URL=%s, HSL_MODE=%s, Digitraffic-User=%s",
-            self.s.cot_url, self.s.hsl_mode, self.s.digitraffic_user,
-        )
-        self._start_sources()
-        await self._refresh_metadata()
-        await self._bootstrap()
+        """Main loop. The data sources are started once and keep running when
+        pytak reconnects to TAK, so the train store survives TAK outages."""
+        if not self._started:
+            self._started = True
+            LOG.info(
+                "Starting tak-feeder-vr: COT_URL=%s, HSL_MODE=%s, Digitraffic-User=%s",
+                self.s.cot_url, self.s.hsl_mode, self.s.digitraffic_user,
+            )
+            self._start_sources()
+            await self._refresh_metadata()
+            await self._bootstrap()
 
         last_prune = last_stats = last_missing = last_boot = time.time()
         iterations = 0
-        try:
-            while number_of_iterations is None or iterations < number_of_iterations:
-                iterations += 1
-                for event in self.store.events(utcnow(), self.stats):
-                    await self.put_queue(event)
-                    if self.s.debug:
-                        LOG.debug("%s", event.decode("utf-8"))
+        while number_of_iterations is None or iterations < number_of_iterations:
+            iterations += 1
+            for event in self.store.events(utcnow(), self.stats):
+                await self.put_queue(event)
+                if self.s.debug:
+                    LOG.debug("%s", event.decode("utf-8"))
 
-                now = time.time()
-                if now - last_missing >= MISSING_INTERVAL:
-                    last_missing = now
-                    await self._fetch_missing()
-                if not self._bootstrapped and now - last_boot >= 300:
-                    last_boot = now
-                    await self._bootstrap()
-                if now - self._metadata_at >= METADATA_INTERVAL and now - last_boot >= 300:
-                    last_boot = now
-                    await self._refresh_metadata()
-                if now - last_prune >= PRUNE_INTERVAL:
-                    last_prune = now
-                    self.store.prune(utcnow())
-                if now - last_stats >= STATS_INTERVAL:
-                    last_stats = now
-                    self._log_stats()
-                await asyncio.sleep(self.s.update_interval)
-        finally:
-            for src in self.sources:
-                src.stop()
+            now = time.time()
+            if now - last_missing >= MISSING_INTERVAL:
+                last_missing = now
+                await self._fetch_missing()
+            if not self._bootstrapped and now - last_boot >= 300:
+                last_boot = now
+                await self._bootstrap()
+            if now - self._metadata_at >= METADATA_INTERVAL and now - last_boot >= 300:
+                last_boot = now
+                await self._refresh_metadata()
+            if now - last_prune >= PRUNE_INTERVAL:
+                last_prune = now
+                self.store.prune(utcnow())
+            self._check_health()
+            if now - last_stats >= STATS_INTERVAL:
+                last_stats = now
+                self._log_stats()
+            await asyncio.sleep(self.s.update_interval)
 
 
 class RxDrain(pytak.QueueWorker):  # type: ignore[misc]

@@ -28,20 +28,29 @@ async def main() -> None:
     parser["tak_feeder_vr"] = settings.pytak_config()
     config = parser["tak_feeder_vr"]
 
-    clitool = pytak.CLITool(config)
-    await clitool.setup()
-    clitool.add_tasks(
-        {
-            RailWorker(clitool.tx_queue, config, settings),
-            RxDrain(clitool.rx_queue, config),
-        }
-    )
-    await clitool.run()
+    # One worker for the whole run: its MQTT clients and train store survive
+    # TAK outages. pytak rebuilds the TAK connection and queues on reconnect.
+    worker = RailWorker(asyncio.Queue(), config, settings)
+
+    async def run_once() -> None:
+        clitool = pytak.CLITool(config)
+        await clitool.setup()
+        worker.queue = clitool.tx_queue
+        clitool.add_tasks({worker, RxDrain(clitool.rx_queue, config)})
+        await clitool.run()
+
+    try:
+        await pytak.supervise_with_reconnect(config, run_once)
+    finally:
+        worker.close()
 
 
 def run() -> None:
     """Console script entry point."""
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
 
 
 if __name__ == "__main__":
