@@ -23,6 +23,7 @@ from .model import Composition, HslTrip, Position, TrainInfo, TrainKey
 
 EARTH_RADIUS_M = 6371000.0
 MIN_MOVE_FOR_COURSE_M = 15.0
+COMPOSITION_CATEGORIES = ("Long-distance", "Commuter")
 
 
 def distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -144,6 +145,12 @@ class TrainStore:
                         return result
                     if key in have or not key[0]:
                         continue
+                    if kind == "composition":
+                        # Digitraffic has compositions only for passenger
+                        # trains; wait for the timetable to know the category
+                        info = self.trains.get(key)
+                        if info is None or info.category not in COMPOSITION_CATEGORIES:
+                            continue
                     last = self.missing_since.get((kind, key))
                     if last is None or now - last >= retry_after:
                         self.missing_since[(kind, key)] = now

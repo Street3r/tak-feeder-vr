@@ -33,7 +33,7 @@ covers VR and the other operators on the Finnish network.
 | Callsign | `VR IC 59`; commuter lines of HSL and Nysse as those feeders name them, `HSL I`, `NYSSE M`; other commuter lines by operator, `VR R`; other operators by their code, e.g. `FENNIARAIL T 3021` |
 | Type | `a-f-G-E-V-C-M`, the same as tak-feeder-hsl (generic vehicle; ATAK has no civilian train symbol) |
 | Speed / course | m/s as CoT requires (ATAK shows the user's units); course computed from consecutive positions |
-| `ce` | GPS accuracy from Digitraffic |
+| `ce` | GPS accuracy from Digitraffic; unknown (`9999999`) when it reports 0, as it currently does for every train |
 | Stale | 120 s |
 
 The remarks hold the route, next stop with estimate and delay, speed,
@@ -46,7 +46,7 @@ Next: Pasila 12:00 (+3 min)
 Speed: 108 km/h
 Rolling stock: Sr2, 7 cars, 189 m, max 200 km/h
 Operator: VR-Yhtymä Oyj
-GPS: 12:00:00 (±8 m)
+GPS: 12:00:00
 Train 59, departure date 2026-10-13
 Source: Fintraffic / digitraffic.fi, CC BY 4.0
 #vr #IC59 #kaukoliikenne #longdistance

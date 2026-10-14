@@ -228,8 +228,11 @@ class EventTest(unittest.TestCase):
         digitraffic_handler(store)("train-locations/x", fx.position(number=77777))
         (ev,) = events(store)
         self.assertEqual(ev.find("detail/contact").get("callsign"), "TRAIN 77777")  # type: ignore[union-attr]
-        self.assertEqual(store.missing(time.time(), 10), [("train", (fx.DATE, "77777")), ("composition", (fx.DATE, "77777"))])
+        # Composition waits for the timetable (category decides if one exists)
+        self.assertEqual(store.missing(time.time(), 10), [("train", (fx.DATE, "77777"))])
         self.assertEqual(store.missing(time.time(), 10), [])  # not asked again right away
+        digitraffic_handler(store)("trains/x", fx.long_distance(77777))
+        self.assertEqual(store.missing(time.time(), 10), [("composition", (fx.DATE, "77777"))])
 
     def test_prune(self) -> None:
         self.store.prune(NOW + timedelta(hours=2))

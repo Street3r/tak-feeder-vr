@@ -55,6 +55,9 @@ def parse_position(data: dict[str, Any]) -> Optional[Position]:
         number = data["trainNumber"]
     except (KeyError, TypeError, ValueError, IndexError):
         return None
+    # Only real GPS fixes (the field is absent in older responses)
+    if data.get("isGpsLocation") is False:
+        return None
     ts = parse_time(data.get("timestamp"))
     if ts is None:
         return None
@@ -66,7 +69,8 @@ def parse_position(data: dict[str, Any]) -> Optional[Position]:
         lon=lon,
         timestamp=ts,
         speed_kmh=float(speed) if isinstance(speed, (int, float)) else 0.0,
-        accuracy_m=float(accuracy) if isinstance(accuracy, (int, float)) else None,
+        # Digitraffic sends 0 when the accuracy is not known
+        accuracy_m=float(accuracy) if isinstance(accuracy, (int, float)) and accuracy > 0 else None,
     )
 
 

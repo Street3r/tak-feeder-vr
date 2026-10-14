@@ -24,11 +24,20 @@ def _station(code: str, stations: dict[str, str]) -> str:
     return stations.get(code, code)
 
 
-def next_stop(info: TrainInfo) -> Optional[TimetableRow]:
-    """First stopping row the train has not reached yet."""
+STALE_STOP = timedelta(minutes=15)
+
+
+def next_stop(info: TrainInfo, now: Optional[datetime] = None) -> Optional[TimetableRow]:
+    """First stopping row the train has not reached yet. Rows without an
+    actual time whose expected time is long past are skipped: shunting and
+    some other trains never get actual times."""
     for row in info.rows:
-        if row.actual is None and row.stopping and not row.cancelled:
-            return row
+        if row.actual is not None or not row.stopping or row.cancelled:
+            continue
+        expected = row.estimate or row.scheduled
+        if now is not None and expected is not None and expected < now - STALE_STOP:
+            continue
+        return row
     return None
 
 
@@ -63,7 +72,7 @@ def remarks(
             first = _station(info.rows[0].station, stations)
             last = _station(info.rows[-1].station, stations)
             lines.append(f"{first} → {last}")
-        nxt = next_stop(info)
+        nxt = next_stop(info, now)
         if nxt:
             when = nxt.estimate or nxt.scheduled
             at = f" {when.astimezone(tz):%H:%M}" if when else ""
@@ -76,7 +85,7 @@ def remarks(
             if sec.locomotives:
                 parts.append(", ".join(sec.locomotives))
             if sec.wagons:
-                parts.append(f"{sec.wagons} cars")
+                parts.append(f"{sec.wagons} car{'s' if sec.wagons != 1 else ''}")
             if sec.length_m:
                 parts.append(f"{sec.length_m} m")
             if sec.max_speed:
