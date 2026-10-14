@@ -237,7 +237,7 @@ class TrainStore:
                 info = self.trains.get(key)
                 if info is None:
                     stats.no_timetable += 1
-                if self.s.categories and (info is None or info.category not in self.s.categories):
+                if self.s.categories and naming.effective_category(info) not in self.s.categories:
                     stats.filtered += 1
                     continue
 

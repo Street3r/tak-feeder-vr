@@ -46,7 +46,7 @@ def events() -> dict[str, ET.Element]:
 class RealDataTest(unittest.TestCase):
     def test_all_parse(self) -> None:
         store = load_store()
-        self.assertEqual(len(store.tracked), 4)
+        self.assertEqual(len(store.tracked), 5)
         self.assertTrue(all(k in store.trains for k in store.tracked))
 
     def test_accuracy_zero_is_unknown(self) -> None:
@@ -63,7 +63,7 @@ class RealDataTest(unittest.TestCase):
         self.assertIsNone(model.parse_position({**DATA["locations"][0], "isGpsLocation": False}))
 
     def test_callsigns(self) -> None:
-        self.assertEqual(set(events()), {"VR IC 12", "HSL A", "VR SAA 60012", "VR T 2228"})
+        self.assertEqual(set(events()), {"VR IC 12", "HSL A", "VR SAA 60012", "VR T 2228", "VR HV 10149"})
 
     def test_long_distance_remarks(self) -> None:
         text = events()["VR IC 12"].find("detail/remarks").text or ""  # type: ignore[union-attr]
@@ -81,6 +81,22 @@ class RealDataTest(unittest.TestCase):
         # Shunting trains get no actual times: a stop long past is not "next"
         text = events()["VR SAA 60012"].find("detail/remarks").text or ""  # type: ignore[union-attr]
         self.assertNotIn("Next:", text)
+
+    def test_empty_stock_train(self) -> None:
+        # Line V / type HV: stock moved between depot and station, no passengers
+        ev = events()["VR HV 10149"]
+        text = ev.find("detail/remarks").text or ""  # type: ignore[union-attr]
+        self.assertTrue(text.startswith("VR HV 10149 · Empty stock"))
+        self.assertNotIn("Authority:", text)
+        self.assertTrue(text.endswith("#vr #HV10149 #tyhjävaunujuna #emptystock #vryhtymä"))
+
+    def test_empty_stock_category_filter(self) -> None:
+        store = load_store()
+        store.s.categories = ["Commuter", "Long-distance"]
+        latest = max(t.pos.timestamp for t in store.tracked.values())
+        calls = {ET.fromstring(e).find("detail/contact").get("callsign")  # type: ignore[union-attr]
+                 for e in store.events(latest + timedelta(seconds=5), Stats())}
+        self.assertEqual(calls, {"VR IC 12", "HSL A"})
 
     def test_cargo_has_no_composition_lookup(self) -> None:
         store = load_store()

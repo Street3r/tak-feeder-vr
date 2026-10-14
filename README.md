@@ -56,7 +56,8 @@ The operator's full name without the company form is a tag too
 (`#vryhtymä`, `#fenniarail`, `#grkrail`, `#nrcgroupfinland`, `#northrail`).
 Category hashtags, Finnish and English: `#kaukoliikenne #longdistance`,
 `#lähiliikenne #commuter`, `#tavaraliikenne #cargo`, `#veturi #locomotive`,
-`#vaihtotyö #shunting`, `#ratatyökone #trackmachine`, `#koeajo #testrun`.
+`#vaihtotyö #shunting`, `#ratatyökone #trackmachine`, `#koeajo #testrun`,
+`#tyhjävaunujuna #emptystock`.
 
 ### Commuter lines and authorities
 
@@ -69,6 +70,7 @@ feeder maps line letters (`COMMUTER_BRANDS`):
 | A, E, I, K, L, P, U, X, Y (HSL's own lines) | `HSL I` | `#hsl` | `Authority: HSL` |
 | M (Tampere region) | `NYSSE M` | `#nysse` | `Authority: NYSSE` |
 | R, Z, D, T, G, O, H and others | `VR R` | | |
+| V (train type HV): empty stock between depot and station, no passengers | `VR HV 10149` | `#tyhjävaunujuna #emptystock` instead of the commuter tags | `Empty stock` |
 
 R, Z, D and T also stop in the HSL area with HSL tickets, but they are not
 HSL's own lines. The map is a setting, so it can follow changes.
@@ -137,7 +139,7 @@ All settings are environment variables, documented in
 | `DIGITRAFFIC_USER` | `tak-feeder-vr` | `Digitraffic-User` header. No personal data |
 | `HSL_MODE` | `off` | `uid`, `skip` or `off` |
 | `COMMUTER_BRANDS` | HSL lines, `M=NYSSE` | Line letter to authority, e.g. `I=HSL` |
-| `CATEGORIES` | all | e.g. `Long-distance,Commuter` |
+| `CATEGORIES` | all | e.g. `Long-distance,Commuter`; `Empty stock` is its own category, so this leaves out the depot trains |
 | `OPERATOR_CALLSIGNS` | `ferfi=FENNIARAIL,winco=GRK,vr-track=NRC,operail=NORTHRAIL` | Callsign abbreviations by Digitraffic operator code; replaces the default list, empty = codes upper-cased |
 | `DEBUG` | `0` | `1` logs every CoT event |
 
