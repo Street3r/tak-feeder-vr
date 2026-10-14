@@ -69,7 +69,7 @@ class RealDataTest(unittest.TestCase):
         text = events()["VR IC 12"].find("detail/remarks").text or ""  # type: ignore[union-attr]
         self.assertIn("Joensuu → Helsinki", text)
         self.assertIn("Rolling stock: Sr2, 6 cars, 177 m, max 200 km/h", text)
-        self.assertTrue(text.endswith("#vr #IC12 #kaukoliikenne #longdistance"))
+        self.assertTrue(text.endswith("#vr #IC12 #kaukoliikenne #longdistance #vryhtymä"))
 
     def test_commuter_remarks(self) -> None:
         text = events()["HSL A"].find("detail/remarks").text or ""  # type: ignore[union-attr]

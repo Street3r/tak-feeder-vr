@@ -93,6 +93,21 @@ class NamingTest(unittest.TestCase):
         self.assertEqual(naming.callsign(key, t, {}), "VR R")
         self.assertEqual(naming.hashtags(key, t, "vr"), "#vr #R #lähiliikenne #commuter")
 
+    def test_operator_abbreviations_and_tag(self) -> None:
+        overrides = Settings().operator_callsigns
+        key = (fx.DATE, "3021")
+        for code, name, call, tag in (
+            ("ferfi", "Fenniarail Oy", "FENNIARAIL T 3021", "#fenniarail"),
+            ("winco", "GRK Rail Oy", "GRK T 3021", "#grkrail"),
+            ("vr-track", "NRC Group Finland Oy", "NRC T 3021", "#nrcgroupfinland"),
+            ("operail", "North Rail Oy", "NORTHRAIL T 3021", "#northrail"),
+            ("destia", "Destia Rail Oy", "DESTIA T 3021", "#destiarail"),
+        ):
+            t = model.parse_train(fx.cargo(operator=code))
+            self.assertEqual(naming.callsign(key, t, overrides), call)
+            self.assertTrue(naming.hashtags(key, t, "vr", None, name).endswith(tag))
+        self.assertEqual(Settings.from_env({"OPERATOR_CALLSIGNS": ""}).operator_callsigns, {})
+
     def test_authority_lines(self) -> None:
         brands = Settings().commuter_brands
         hsl = model.parse_train(fx.commuter(line="I"))
@@ -170,7 +185,7 @@ class EventTest(unittest.TestCase):
         self.assertIn("Operator: VR-Yhtymä Oyj", text)
         self.assertIn("GPS: 12:00:00 (±8 m)", text)
         self.assertIn("Source: Fintraffic / digitraffic.fi, CC BY 4.0", text)
-        self.assertTrue(text.endswith("#vr #IC59 #kaukoliikenne #longdistance"))
+        self.assertTrue(text.endswith("#vr #IC59 #kaukoliikenne #longdistance #vryhtymä"))
 
     def test_utf8_without_declaration(self) -> None:
         raw = self.store.events(NOW, Stats())[0]
@@ -215,7 +230,7 @@ class EventTest(unittest.TestCase):
         text = remarks(ev)
         self.assertIn("Authority: HSL", text)
         self.assertIn("Operator: VR-Yhtymä Oyj", text)
-        self.assertTrue(text.endswith("#vr #I #lähiliikenne #commuter #hsl"))
+        self.assertTrue(text.endswith("#vr #I #lähiliikenne #commuter #vryhtymä #hsl"))
 
     def test_category_filter(self) -> None:
         store = make_store(hsl_mode="off", categories=["Commuter"])

@@ -15,6 +15,11 @@ HSL_MODES = ("uid", "skip", "off")
 # (R, Z, D, T, G, O, H ...) are named after the operator ("VR R").
 DEFAULT_COMMUTER_BRANDS = "A=HSL,E=HSL,I=HSL,K=HSL,L=HSL,P=HSL,U=HSL,X=HSL,Y=HSL,M=NYSSE"
 
+# Callsign abbreviations for operators whose Digitraffic short code is not
+# their name (ferfi = Fenniarail Oy, winco = GRK Rail Oy, vr-track = NRC Group
+# Finland Oy, operail = North Rail Oy). Others use the short code upper-cased.
+DEFAULT_OPERATOR_CALLSIGNS = "ferfi=FENNIARAIL,winco=GRK,vr-track=NRC,operail=NORTHRAIL"
+
 
 def _bool(value: Optional[str]) -> bool:
     return str(value or "").strip().lower() in ("1", "true", "yes", "on")
@@ -61,7 +66,9 @@ class Settings:
     uid_prefix: str = "VR"
     feed_tag: str = "vr"
     source_line: str = "Source: Fintraffic / digitraffic.fi, CC BY 4.0"
-    operator_callsigns: dict[str, str] = field(default_factory=dict)
+    operator_callsigns: dict[str, str] = field(
+        default_factory=lambda: _map(DEFAULT_OPERATOR_CALLSIGNS)
+    )
     commuter_brands: dict[str, str] = field(
         default_factory=lambda: _map(DEFAULT_COMMUTER_BRANDS, upper_keys=True)
     )
@@ -108,7 +115,11 @@ class Settings:
             uid_prefix=get("UID_PREFIX", d.uid_prefix),
             feed_tag=get("FEED_TAG", d.feed_tag),
             source_line=get("SOURCE_LINE", d.source_line),
-            operator_callsigns=_map(env.get("OPERATOR_CALLSIGNS")),
+            # Set but empty = no abbreviations, short codes upper-cased
+            operator_callsigns=_map(
+                env["OPERATOR_CALLSIGNS"] if "OPERATOR_CALLSIGNS" in env
+                else DEFAULT_OPERATOR_CALLSIGNS
+            ),
             # Set but empty = no brands, every commuter train as "VR <line>"
             commuter_brands=_map(
                 env["COMMUTER_BRANDS"] if "COMMUTER_BRANDS" in env else DEFAULT_COMMUTER_BRANDS,

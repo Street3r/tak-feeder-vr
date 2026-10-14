@@ -252,7 +252,8 @@ class TrainStore:
 
                 brands = self.s.commuter_brands
                 call = naming.callsign(key, info, self.s.operator_callsigns, brands)
-                tags = naming.hashtags(key, info, self.s.feed_tag, brands)
+                op_name = self.operators.get(info.operator, "") if info else ""
+                tags = naming.hashtags(key, info, self.s.feed_tag, brands, op_name)
                 text = cot.remarks(
                     pos,
                     info,

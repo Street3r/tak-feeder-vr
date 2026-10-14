@@ -91,19 +91,34 @@ def route_tag(key: TrainKey, info: Optional[TrainInfo]) -> str:
     return f"{_tagify(train_type).upper()}{key[1]}"
 
 
+_COMPANY_FORMS = re.compile(r"[\s,]+(oyj|oy|ab|abp|ltd|as|gmbh)\.?$", re.IGNORECASE)
+
+
+def operator_tag(name: str) -> str:
+    """Hashtag word for an operator's full name without the company form:
+    "Fenniarail Oy" -> "fenniarail", "VR-Yhtymä Oyj" -> "vryhtymä"."""
+    return _tagify(_COMPANY_FORMS.sub("", name.strip()))
+
+
 def hashtags(
     key: TrainKey,
     info: Optional[TrainInfo],
     feed_tag: str,
     brands: Optional[dict[str, str]] = None,
+    operator_name: str = "",
 ) -> str:
-    """#vr #IC59 #kaukoliikenne #longdistance; the authority of its lines last:
-    #vr #I #lähiliikenne #commuter #hsl"""
+    """#vr #IC59 #kaukoliikenne #longdistance #vryhtymä: feed, route, category
+    (Finnish, English), operator's full name; the authority of its lines last:
+    #vr #I #lähiliikenne #commuter #vryhtymä #hsl"""
     tags = [feed_tag, route_tag(key, info), *category_tags(info)]
+    if operator_name:
+        tags.append(operator_tag(operator_name))
     brand = commuter_brand(info, brands or {})
     if brand:
         tags.append(_tagify(brand))
-    return " ".join(f"#{t}" for t in tags if t)
+    seen: set[str] = set()
+    unique = [t for t in tags if t and not (t in seen or seen.add(t))]
+    return " ".join(f"#{t}" for t in unique)
 
 
 def native_uid(key: TrainKey, prefix: str) -> str:
