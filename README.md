@@ -1,9 +1,8 @@
 # tak-feeder-vr
 
-> [!WARNING]
-> **Work in progress. Not recommended for use.** The feeder has not been run
-> against live Digitraffic data or a live TAK server yet. Things may change or
-> break without notice.
+> [!NOTE]
+> Tested with live Digitraffic data and TAK Server 5.8 (October 2026).
+> Settings and CoT details may still change.
 
 Feeds the live GPS positions of trains running in Finland into a TAK server
 as CoT. The data comes from Fintraffic's open
