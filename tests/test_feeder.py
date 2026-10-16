@@ -379,5 +379,42 @@ def _now_like_hsl(store: TrainStore) -> datetime:
     return real_now + timedelta(seconds=5)
 
 
+class WorkerQueueTest(unittest.TestCase):
+    def test_large_round_is_not_dropped(self) -> None:
+        """A round of more than MAX_OUT_QUEUE (100) trains reaches the queue
+        in full; pytak's put_queue dropped the oldest ones."""
+        import asyncio
+        from configparser import ConfigParser
+        from unittest import mock
+
+        from tak_feeder_vr import worker
+
+        sent = [f"<event uid='{i}'/>".encode() for i in range(250)]
+
+        async def scenario() -> list[bytes]:
+            queue: asyncio.Queue[bytes] = asyncio.Queue(maxsize=100)
+            parser = ConfigParser()
+            parser["vr"] = {}
+            w = worker.RailWorker(queue, parser["vr"], Settings(update_interval=0))
+            w._started = True
+            got: list[bytes] = []
+
+            async def consume() -> None:
+                while len(got) < len(sent):
+                    got.append(await queue.get())
+
+            consumer = asyncio.create_task(consume())
+            with mock.patch.object(w.store, "events", return_value=sent), \
+                    mock.patch.object(w, "_fetch_missing", mock.AsyncMock()), \
+                    mock.patch.object(w, "_bootstrap", mock.AsyncMock()), \
+                    mock.patch.object(w, "_refresh_metadata", mock.AsyncMock()), \
+                    mock.patch.object(w, "_check_health"):
+                await w.run(number_of_iterations=1)
+            await asyncio.wait_for(consumer, 5)
+            return got
+
+        self.assertEqual(asyncio.run(scenario()), sent)
+
+
 if __name__ == "__main__":
     unittest.main()
