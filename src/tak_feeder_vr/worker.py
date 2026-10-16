@@ -170,8 +170,11 @@ class RailWorker(pytak.QueueWorker):  # type: ignore[misc]
         iterations = 0
         while number_of_iterations is None or iterations < number_of_iterations:
             iterations += 1
+            # Wait for room in the queue: pytak's put_queue drops the oldest
+            # item when the queue (MAX_OUT_QUEUE, 100) is full, which lost all
+            # but the last 100 trains of a larger round.
             for event in self.store.events(utcnow(), self.stats):
-                await self.put_queue(event)
+                await self.queue.put(event)
                 if self.s.debug:
                     LOG.debug("%s", event.decode("utf-8"))
 
