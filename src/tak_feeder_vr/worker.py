@@ -195,7 +195,7 @@ class RailWorker(pytak.QueueWorker):  # type: ignore[misc]
             if now - last_stats >= STATS_INTERVAL:
                 last_stats = now
                 self._log_stats()
-            await asyncio.sleep(self.s.update_interval)
+            await asyncio.sleep(self.s.send.moving)
 
 
 class RxDrain(pytak.QueueWorker):  # type: ignore[misc]

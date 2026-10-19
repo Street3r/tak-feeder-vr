@@ -18,6 +18,7 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 from . import cot, naming
+from .common import SendSchedule
 from .config import Settings
 from .model import Composition, HslTrip, Position, TrainInfo, TrainKey
 
@@ -57,8 +58,6 @@ class Tracked:
     course: float = 0.0
     anchor_lat: Optional[float] = None  # last point used for the course
     anchor_lon: Optional[float] = None
-    sent_ts: Optional[datetime] = None  # GPS timestamp last sent
-    sent_at: float = 0.0  # time.time() of last send
     hsl_uid: str = ""  # UID of the matched HSL trip
     hsl_until: float = 0.0  # keep using hsl_uid until this time
 
@@ -88,6 +87,7 @@ class TrainStore:
         self.stations: dict[str, str] = {}
         self.operators: dict[str, str] = {}
         self.missing_since: dict[tuple[str, TrainKey], float] = {}
+        self.schedule = SendSchedule(settings.send)
 
     # ------------------------------------------------------------- updates
     def update_position(self, pos: Position) -> None:
@@ -165,6 +165,7 @@ class TrainStore:
         hsl_cutoff = time.time() - 600
         with self._lock:
             self.tracked = {k: v for k, v in self.tracked.items() if v.pos.timestamp >= pos_cutoff}
+            self.schedule.keep_only(str(k) for k in self.tracked)
             self.trains = {k: v for k, v in self.trains.items() if k[0] >= keep_from or k in self.tracked}
             self.compositions = {
                 k: v for k, v in self.compositions.items() if k[0] >= keep_from or k in self.tracked
@@ -216,7 +217,9 @@ class TrainStore:
 
     # ---------------------------------------------------------------- output
     def events(self, now: datetime, stats: Stats) -> list[bytes]:
-        """CoT events for trains whose position changed or needs refreshing."""
+        """CoT events for the trains due by the send policy: moving ones every
+        SEND_MOVING_INTERVAL, stopped ones every SEND_STATIONARY_INTERVAL, the
+        latest GPS position again if no newer one has arrived."""
         now_ts = now.timestamp()
         max_age = timedelta(seconds=self.s.max_position_age)
         out: list[bytes] = []
@@ -231,8 +234,8 @@ class TrainStore:
                     tr.hsl_uid = matched.uid
                     tr.hsl_until = now_ts + self.s.hsl_max_age
                 hsl_uid = tr.hsl_uid if tr.hsl_uid and now_ts <= tr.hsl_until else ""
-                changed = tr.sent_ts != pos.timestamp
-                if not changed and now_ts - tr.sent_at < self.s.refresh_interval:
+                speed = pos.speed_kmh / 3.6
+                if not self.schedule.due(str(key), speed, now_ts):
                     continue
                 info = self.trains.get(key)
                 if info is None:
@@ -245,7 +248,7 @@ class TrainStore:
                 if hsl_uid:
                     if self.s.hsl_mode == "skip":
                         stats.hsl_skipped += 1
-                        tr.sent_ts, tr.sent_at = pos.timestamp, now_ts
+                        self.schedule.mark(str(key), speed, now_ts)
                         continue
                     uid = hsl_uid
                     stats.hsl_uid += 1
@@ -269,10 +272,11 @@ class TrainStore:
                 )
                 out.append(
                     cot.build_event(
-                        uid, self.s.cot_type, call, pos, tr.course, text, now, self.s.stale_seconds
+                        uid, self.s.cot_type, call, pos, tr.course, text, now,
+                        self.s.send.stale_for(self.s.send.interval(speed)),
                     )
                 )
-                tr.sent_ts, tr.sent_at = pos.timestamp, now_ts
+                self.schedule.mark(str(key), speed, now_ts)
                 stats.sent += 1
         return out
 

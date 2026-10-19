@@ -8,6 +8,8 @@ import os
 from dataclasses import dataclass, field
 from typing import Mapping, Optional
 
+from .common import SendPolicy
+
 HSL_MODES = ("uid", "skip", "off")
 
 # Commuter lines named after the transit authority that runs them, matching
@@ -58,9 +60,7 @@ class Settings:
     api_url: str = "https://rata.digitraffic.fi/api/v1"
 
     # Output
-    update_interval: float = 2.0
-    refresh_interval: float = 30.0
-    stale_seconds: int = 120
+    send: SendPolicy = field(default_factory=SendPolicy)
     max_position_age: int = 180
     cot_type: str = "a-f-G-E-V-C-M"  # same as HSL, so a shared UID keeps one look
     uid_prefix: str = "VR"
@@ -107,9 +107,7 @@ class Settings:
             digitraffic_user=get("DIGITRAFFIC_USER", d.digitraffic_user),
             mqtt_url=get("DIGITRAFFIC_MQTT_URL", d.mqtt_url),
             api_url=get("DIGITRAFFIC_API_URL", d.api_url).rstrip("/"),
-            update_interval=float(get("UPDATE_INTERVAL", str(d.update_interval))),
-            refresh_interval=float(get("REFRESH_INTERVAL", str(d.refresh_interval))),
-            stale_seconds=int(get("STALE_SECONDS", str(d.stale_seconds))),
+            send=SendPolicy.from_env(env),
             max_position_age=int(get("MAX_POSITION_AGE", str(d.max_position_age))),
             cot_type=get("COT_TYPE", d.cot_type),
             uid_prefix=get("UID_PREFIX", d.uid_prefix),

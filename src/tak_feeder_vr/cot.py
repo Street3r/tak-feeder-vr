@@ -113,7 +113,7 @@ def build_event(
     course: float,
     remarks_text: str,
     now: datetime,
-    stale_seconds: int,
+    stale_seconds: float,
 ) -> bytes:
     """CoT XML. Speed is in m/s as the CoT schema requires; ATAK converts it."""
     root = ET.Element("event")
