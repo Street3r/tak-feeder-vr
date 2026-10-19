@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 
 from tak_feeder_vr import model, naming
 from tak_feeder_vr.config import Settings
+from tak_feeder_vr.common import SendPolicy
 from tak_feeder_vr.sources import digitraffic_handler, hsl_handler
 from tak_feeder_vr.store import Stats, TrainStore, bearing_deg, distance_m
 
@@ -173,7 +174,7 @@ class EventTest(unittest.TestCase):
         self.assertEqual(ev.find("detail/track").get("speed"), "30.00")  # type: ignore[union-attr]
         self.assertEqual(ev.find("point").get("ce"), "8.0")  # type: ignore[union-attr]
         stale = datetime.fromisoformat(ev.get("stale", "").replace("Z", "+00:00"))
-        self.assertEqual(stale - NOW.replace(microsecond=0), timedelta(seconds=120))
+        self.assertEqual(stale - NOW.replace(microsecond=0), timedelta(seconds=180))
 
     def test_remarks(self) -> None:
         (ev,) = events(self.store)
@@ -192,12 +193,15 @@ class EventTest(unittest.TestCase):
         self.assertTrue(raw.startswith(b"<event "))
         self.assertIn("· Long-distance".encode("utf-8"), raw)
 
-    def test_resend_only_on_change_or_refresh(self) -> None:
-        self.assertEqual(len(events(self.store)), 1)
-        self.assertEqual(len(events(self.store, NOW + timedelta(seconds=5))), 0)
-        self.assertEqual(len(events(self.store, NOW + timedelta(seconds=31))), 1)
-        self.store.update_position(model.parse_position(fx.position(ts="2026-10-13T09:00:06.000Z", lat=60.2)))  # type: ignore[arg-type]
-        self.assertEqual(len(events(self.store, NOW + timedelta(seconds=33))), 1)
+    def test_send_rate(self) -> None:
+        self.assertEqual(len(events(self.store)), 1)  # 108 km/h: every 5 s
+        self.assertEqual(len(events(self.store, NOW + timedelta(seconds=3))), 0)
+        self.assertEqual(len(events(self.store, NOW + timedelta(seconds=5))), 1)  # re-sent
+        stopped = fx.position(ts="2026-10-13T09:00:06.000Z", lat=60.2, speed=0)
+        self.store.update_position(model.parse_position(stopped))  # type: ignore[arg-type]
+        self.assertEqual(len(events(self.store, NOW + timedelta(seconds=6))), 1)  # stopped
+        self.assertEqual(len(events(self.store, NOW + timedelta(seconds=40))), 0)
+        self.assertEqual(len(events(self.store, NOW + timedelta(seconds=66))), 1)  # every 60 s
 
     def test_old_position_dropped(self) -> None:
         self.assertEqual(events(self.store, NOW + timedelta(seconds=200)), [])
@@ -395,7 +399,7 @@ class WorkerQueueTest(unittest.TestCase):
             queue: asyncio.Queue[bytes] = asyncio.Queue(maxsize=100)
             parser = ConfigParser()
             parser["vr"] = {}
-            w = worker.RailWorker(queue, parser["vr"], Settings(update_interval=0))
+            w = worker.RailWorker(queue, parser["vr"], Settings(send=SendPolicy(moving=0)))
             w._started = True
             got: list[bytes] = []
 

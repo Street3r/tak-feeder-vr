@@ -18,8 +18,9 @@ covers VR and the other operators on the Finnish network.
   (`/live-trains`) plus the station and operator lists (refreshed daily).
   Data a train still lacks is fetched one train at a time, at most 20 requests
   a minute.
-- Every `UPDATE_INTERVAL` seconds each train whose position changed is sent
-  to TAK; unchanged trains are re-sent every `REFRESH_INTERVAL` seconds. A
+- A moving train is sent to TAK every `SEND_MOVING_INTERVAL` seconds, a
+  stopped one every `SEND_STATIONARY_INTERVAL` seconds and at once when it
+  stops. The latest position is re-sent at that rate between GPS fixes. A
   train is dropped when its GPS has been silent for `MAX_POSITION_AGE` seconds.
 - Only trains with a GPS position are sent. Not every train has GPS, and the
   driver switches it on and off.
@@ -140,6 +141,10 @@ All settings are environment variables, documented in
 | `COMMUTER_BRANDS` | HSL lines, `M=NYSSE` | Line letter to authority, e.g. `I=HSL` |
 | `CATEGORIES` | all | e.g. `Long-distance,Commuter`; `Empty stock` is its own category, so this leaves out the depot trains |
 | `OPERATOR_CALLSIGNS` | `ferfi=FENNIARAIL,winco=GRK,vr-track=NRC,operail=NORTHRAIL` | Callsign abbreviations by Digitraffic operator code; replaces the default list, empty = codes upper-cased |
+| `SEND_MOVING_INTERVAL` | `5` | Seconds between sends of a moving train, min 1 (old name `UPDATE_INTERVAL`) |
+| `SEND_STATIONARY_INTERVAL` | `60` | Seconds between sends of a stopped train, min 30 (old name `REFRESH_INTERVAL`) |
+| `STATIONARY_SPEED` | `0.5` | Below this speed (m/s) a train counts as stopped |
+| `STALE_SECONDS` | `180` | Marker lifetime; always at least 3 send intervals |
 | `DEBUG` | `0` | `1` logs every CoT event |
 
 ## Limitations
