@@ -78,12 +78,11 @@ HSL's own lines. The map is a setting, so it can follow changes.
 ### Commuter trains also published by HSL
 
 HSL publishes the commuter trains of the Helsinki region, and
-[tak-feeder-hsl](https://github.com/Street3r/tak-feeder-hsl) (fork of
-[sgofferj/tak-feeder-hsl](https://github.com/sgofferj/tak-feeder-hsl)) and
+[tak-feeder-hsl](https://github.com/sgofferj/tak-feeder-hsl) and
 [trakbridge-plugin-hsl](https://github.com/sgofferj/trakbridge-plugin-hsl)
 send them to TAK. The simplest way to avoid two markers is to drop trains
-from the HSL feeder; docker-tak-feeder-compose does that with
-`HSL_EXCLUDE_MODES=train`. That is what the default `HSL_MODE=off` assumes.
+from the HSL feeder (`HSL_EXCLUDE_MODES=train` in the Street3r fork of
+tak-feeder-hsl). That is what the default `HSL_MODE=off` assumes.
 
 If an HSL feeder does send trains, this feeder can listen to HSL's train feed
 (`/hfp/v2/journey/ongoing/vp/train/#` on `mqtt.hsl.fi`) and pair trains by
