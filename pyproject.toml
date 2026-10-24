@@ -13,6 +13,7 @@ requires-python = ">=3.12"
 dependencies = [
     "pytak[with-aiohttp,with-crypto]>=7.5.2,<8",
     "paho-mqtt>=2.1,<3",
+    "python-takserver-api @ git+https://github.com/sgofferj/python-takserver-api.git@48f410764a6a19a8d97eb4827c860fb771b31dee",
     "tzdata",
 ]
 

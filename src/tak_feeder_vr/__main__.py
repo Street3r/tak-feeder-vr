@@ -13,8 +13,11 @@ from configparser import ConfigParser
 
 import pytak
 
+from . import railworks
 from .config import Settings
 from .worker import RailWorker, RxDrain
+
+LOG = logging.getLogger("tak_feeder_vr")
 
 
 async def main() -> None:
@@ -39,8 +42,18 @@ async def main() -> None:
         clitool.add_tasks({worker, RxDrain(clitool.rx_queue, config)})
         await clitool.run()
 
+    # Track works and traffic restrictions go to a mission through the TAK
+    # API, independent of the CoT connection.
+    rw = railworks.RailworksSettings.from_env()
+    tasks = [pytak.supervise_with_reconnect(config, run_once)]
+    if rw.enabled and rw.api_host and rw.include:
+        LOG.info("Railworks: %s -> mission %s (%s) on %s", ",".join(rw.include),
+                 rw.mission_name, ",".join(rw.groups) or "default groups", rw.api_host)
+        tasks.append(railworks.run(rw))
+    elif rw.enabled:
+        LOG.warning("Railworks off: no API_HOST and no host in COT_URL")
     try:
-        await pytak.supervise_with_reconnect(config, run_once)
+        await asyncio.gather(*tasks)
     finally:
         worker.close()
 
