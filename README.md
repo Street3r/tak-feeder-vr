@@ -94,6 +94,45 @@ line letter, operating day, distance and heading, one to one:
 - `skip`: not sent; HSL's marker is the only one.
 - `off` (default): HSL is ignored.
 
+## Track works and traffic restrictions
+
+The feeder also keeps a TAK mission (Data Sync, default `RailworksFin`) with
+the active track works and traffic restrictions of the Finnish rail network.
+They come from Fintraffic's RUMA system through the Digitraffic rail API
+(`trafficrestriction-notifications.geojson` and
+`trackwork-notifications.geojson`), fetched every 10 minutes.
+
+- Restrictions are shown from their start until their end date, unless
+  marked finished. Track works are shown while their state is `ACTIVE`.
+- Each notice is one marker at its approximate location, named after the
+  type and the nearest station (`Rata suljettu: Kouvola`). Its track sections
+  are ATAK lines and its work areas filled polygons in the same colour.
+- Notices that end or disappear are removed from the mission; changed ones
+  are uploaded again. Every item is re-uploaded once a day so its stale time
+  stays in the future.
+
+| Restriction | Label | Colour |
+|---|---|---|
+| `CLOSED_FROM_TRAFFIC` | Rata suljettu · Closed to traffic | red |
+| `FIREWORK_DANGER_ZONE` | Tulityövaara · Fire work danger zone | red |
+| `CLOSED_FROM_ELECTRIC_ROLLING_STOCK` | Suljettu sähköjunilta · Closed to electric trains | yellow |
+| `TEMPORARY_SPEED_LIMIT`, `AXLE_WEIGHT_MAX`, `ATP_CONSTRUCTION_ZONE`, `SWITCH_LOCKED`, `OTHER` | in Finnish and English | orange |
+| Track work | Ratatyö · Track work | grey |
+
+The remarks hold the validity, nearest station, organization and the
+notice id, then `Source: Fintraffic / digitraffic.fi, CC BY 4.0` and the tags
+`#rata #railway #rajoitus #restriction #<type>` or `#rata #railway #ratatyö
+#trackwork`.
+
+The mission is created through the TAK server API on port 8443 with the same
+client certificate as the CoT feed. `API_HOST` defaults to the host in
+`COT_URL` (only for `ssl://`, `tls://` and `tcp://`). Give the mission the
+group of the trains so the same users see it, e.g.
+`RAILWORKS_MISSION_GROUP=VR`; groups are set only when the mission is created.
+In ATAK the mission is subscribed in Data Sync. `RAILWORKS=0` turns it off. A
+failing TAK API or Digitraffic request is retried and never stops the train
+feed.
+
 ## Running
 
 The image is built for amd64 and arm64: `ghcr.io/street3r/tak-feeder-vr`.
@@ -145,6 +184,11 @@ All settings are environment variables, documented in
 | `STATIONARY_SPEED` | `0.5` | Below this speed (m/s) a train counts as stopped |
 | `STALE_SECONDS` | `180` | Marker lifetime; always at least 3 send intervals |
 | `DEBUG` | `0` | `1` logs every CoT event |
+| `API_HOST` | host of `COT_URL` | TAK server for the mission API (port 8443) |
+| `RAILWORKS` | `1` | `0` = no track work mission |
+| `RAILWORKS_MISSION_NAME` / `_MISSION_GROUP` | `RailworksFin` / default | Mission name and groups (comma-separated) |
+| `RAILWORKS_INCLUDE` | `restrictions,trackworks` | Which notices |
+| `RAILWORKS_UPDATE_INTERVAL` | `600` | Seconds between fetches (min 60) |
 
 ## Limitations
 
@@ -170,9 +214,12 @@ This feeder is based on the TAK feeders by **Stefan Gofferje**
 - [tak-feeder-hsl](https://github.com/sgofferj/tak-feeder-hsl) and
   [trakbridge-plugin-hsl](https://github.com/sgofferj/trakbridge-plugin-hsl):
   pytak worker structure, CoT format, HSL UID scheme
+- [tak-feeder-traffic-fin-roads](https://github.com/sgofferj/tak-feeder-traffic-fin-roads):
+  mission sync for the track work mission
 
-Built with [pytak](https://github.com/snstac/pytak) and
-[Eclipse Paho MQTT](https://github.com/eclipse-paho/paho.mqtt.python).
+Built with [pytak](https://github.com/snstac/pytak),
+[Eclipse Paho MQTT](https://github.com/eclipse-paho/paho.mqtt.python) and
+[python-takserver-api](https://github.com/sgofferj/python-takserver-api).
 
 ## License
 
